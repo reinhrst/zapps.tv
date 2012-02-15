@@ -21,6 +21,7 @@
         (recur (conj result (hann_window_at (/ l FRAME_LENGTH))))
         result))))
 
+
 (defn get_resampled_audioinputstream [urlstring]
   "creates an audioinputstream at 5500Hz/1ch/16bit, from the url mentioned"
   (AudioSystem/getAudioInputStream ;have to do this in 2 steps, it won't downsample and mono-ize in one conversion
@@ -42,9 +43,19 @@
     (when (> (.available stream) 1)
       (cons (getsample stream) (samples stream)))))
 
-(defn initialize_buffer [stream]
+(defn initial_buffer [sample_data]
   "Initializes the circular buffer"
+    (vec (take (inc FRAME_LENGTH) sample_data)))
 
-  )
+(defn progress_buffer [buffer sample_data]
+ (apply conj (subvec buffer FRAME_LENGTH) (take FRAME_LENGTH sample_data)))
+
+(defn windowize [buffer window]
+  (map * buffer window))
+
+(let [sample_data (samples (get_resampled_audioinputstream "file:///tmp/test.wav"))]
+  (loop [buffer (initial_buffer sample_data)]
+
+
 
 (println (take 500000 (samples (get_resampled_audioinputstream "file:///tmp/test.wav"))))
