@@ -6,7 +6,3 @@
 /.lein-failures
 /checkouts
 /.lein-deps-sum
-*.swp
-*~
-.#*
-*#

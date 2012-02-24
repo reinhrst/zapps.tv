@@ -1,0 +1,12 @@
+# purkinje
+
+Purkinje receives a TV stream, and generates fingerprints from it. Another process can connect to purkinje, and receive a live stream of fingerprints
+
+## Usage
+
+
+
+## License
+
+Copyright (C) 2012 license@claude.nl
+
