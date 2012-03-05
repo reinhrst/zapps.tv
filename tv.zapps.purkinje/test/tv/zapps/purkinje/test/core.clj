@@ -2,5 +2,5 @@
   (:use [tv.zapps.purkinje.core])
   (:use [clojure.test]))
 
-(deftest replace-me ;; FIXME: write
+(deftest test-fingerprint-generation
   (is false "No tests have been written."))
