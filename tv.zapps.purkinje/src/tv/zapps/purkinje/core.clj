@@ -64,9 +64,10 @@
    timestamp))
 
 (defn- generator-and-dispatcher [my-sequence]
+ (doall (take 2 my-sequence)) ; check that the sequence actually works, and make sure the timestamp is not influenced by startup delay
   (let [start-timestamp (calculate-timestamp (Date.))]
-    (log/infof "Gerenator started, at frame-timestamp %d" start-timestamp)
-    (loop [timestamped-sequence (map vector my-sequence (range start-timestamp Double/POSITIVE_INFINITY))]
+    (log/infof "Gerenator started, at frame-timestamp %d, sequence looks healthy" start-timestamp)
+    (loop [timestamped-sequence (map vector (drop 2 my-sequence) (range start-timestamp Double/POSITIVE_INFINITY))]
       (when-let [frst (first timestamped-sequence)]
         (apply dispatch-int frst)
         (recur (rest timestamped-sequence))))))
