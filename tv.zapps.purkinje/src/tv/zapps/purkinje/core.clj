@@ -64,10 +64,12 @@
    timestamp))
 
 (defn- generator-and-dispatcher [my-sequence]
-  (loop [timestamped-sequence (map vector my-sequence (range (calculate-timestamp (Date.)) Double/POSITIVE_INFINITY))]
-    (when-let [frst (first timestamped-sequence)]
-      (apply dispatch-int frst)
-      (recur (rest timestamped-sequence)))))
+  (let [start-timestamp (calculate-timestamp (Date.))]
+    (log/infof "Gerenator started, at frame-timestamp %d" start-timestamp)
+    (loop [timestamped-sequence (map vector my-sequence (range start-timestamp Double/POSITIVE_INFINITY))]
+      (when-let [frst (first timestamped-sequence)]
+        (apply dispatch-int frst)
+        (recur (rest timestamped-sequence))))))
 
 (defn new-connections-sequence [port]
   "Opens the specified port. For each connection that is made, returns a Java.net.Socket"
