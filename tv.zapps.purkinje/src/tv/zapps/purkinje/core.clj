@@ -5,9 +5,9 @@
 
 (def PROTOCOL_VERSION 1)
 
-(defn- calculate-timestamp [date]
+(defn calculate-timestamp [date]
   "Takes a date object and returns the timestamp such as required in the protocol specification"
-  (-> date .toTime (* tv.zapps.purkinje.constants/SAMPLE_FREQUENCY) (/ tv.zapps.purkinje.constants/FINGERPRINT_INTERVAL) int)) ;probably we would want a better resolution at one point but for now this is fine
+  (-> date .getTime (* tv.zapps.purkinje.constants/SAMPLE_FREQUENCY) (/ tv.zapps.purkinje.constants/FINGERPRINT_INTERVAL 1000) long)) ;probably we would want a better resolution at one point but for now this is fine
 
 (defn fingerprint-sequence-from-url-string-for-test [url-string]
   "Takes a url-string, returns a sequence of fingerprints. NOTE: this takes a real-timed stream, only use this for testing with local files"
@@ -43,20 +43,31 @@
                      (catch Exception e
                        (close-connection connection) nil))))))
 
-(defn- dispatch-bytes [message-bytes]
+(defn- send-header [ag timestamp]
+  (send-bytes ag (nl.claude.tools.conversion/long-to-byte-array-be PROTOCOL_VERSION))
+  (send-bytes ag (nl.claude.tools.conversion/long-to-byte-array-be timestamp)))
+
+(defn- dispatch-bytes [message-bytes timestamp]
   (doall
    (map
-    #(send-bytes % message-bytes)
+    (fn [ag]
+      (try
+        (when (zero? (:bytes-sent @ag))
+          (send-header ag timestamp))
+        (send-bytes ag message-bytes)
+        (catch NullPointerException e "this may happen in race condition if connection is closed but agent not yet removed from connections; ignore")))
     @connections)))
 
-(defn dispatch-int [message-int]
+(defn dispatch-int [message-int timestamp]
   (dispatch-bytes
-   (nl.claude.tools.conversion/int-to-byte-array-be message-int))); note: message int is actually long, but that's, will work as uint
+   (nl.claude.tools.conversion/int-to-byte-array-be message-int); note: message int is actually long, but that's, will work as uint
+   timestamp))
 
 (defn- generator-and-dispatcher [my-sequence]
-  (when-let [frst (first my-sequence)]
-    (dispatch-int frst)
-    (recur (rest my-sequence))))
+  (loop [timestamped-sequence (map vector my-sequence (range (calculate-timestamp (Date.)) Double/POSITIVE_INFINITY))]
+    (when-let [frst (first timestamped-sequence)]
+      (apply dispatch-int frst)
+      (recur (rest timestamped-sequence)))))
 
 (defn new-connections-sequence [port]
   "Opens the specified port. For each connection that is made, returns a Java.net.Socket"
