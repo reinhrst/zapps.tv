@@ -1,7 +1,8 @@
 (ns tv.zapps.purkinje.core
   (:require tv.zapps.purkinje.fingerprinter tv.zapps.purkinje.provider tv.zapps.purkinje.constants nl.claude.tools.conversion)
   (:use [clojure.tools.logging :as log])
-  (:import java.util.Date java.net.ServerSocket))
+  (:import java.util.Date java.net.ServerSocket)
+  (:gen-class)) ; needed else java won't start from it
 
 (def PROTOCOL_VERSION 1)
 
@@ -81,13 +82,15 @@
       (accept-loop))))
 
 (defn start-server
+  "Starts accepting connections, does not return"
   ([port url-string] (start-server port url-string fingerprint-sequence-from-url-string))
   ([port url-string sequence-function]
      (.start (Thread. #(generator-and-dispatcher (sequence-function url-string))))
-     (map
-      accept-connection
-      connection-number
-      (new-connections-sequence port))))
+     (dorun
+      (map
+       accept-connection
+       connection-number
+       (new-connections-sequence port)))))
 
 (defn -main [& args]
   (let [port (Integer/parseInt (nth args 0))
