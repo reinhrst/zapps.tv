@@ -1,54 +1,54 @@
 - name: Nederland 1
   frequency: 216
-  mpeg_host: eeyore
+  tubby_hostname: eeyore
   device: /dev/video0
-  mpeg port: 8001
-  purkinje_host: eeyore
+  tubby_port: 8001
+  purkinje_hostname: eeyore
   purkinje_port: 9001
   active: true
 
 - name: Nederland 2
   frequency: 184
-  mpeg_host: eeyore
+  tubby_hostname: eeyore
   device: /dev/video1
-  mpeg port: 8002
-  purkinje_host: eeyore
+  tubby_port: 8002
+  purkinje_hostname: eeyore
   purkinje_port: 9002
   active: true
 
 - name: Nederland 3
   frequency: 192
-  mpeg_host: eeyore
+  tubby_hostname: eeyore
   device: /dev/video2
-  mpeg port: 8003
-  purkinje_host: eeyore
+  tubby_port: 8003
+  purkinje_hostname: eeyore
   purkinje_port: 9003
   active: true
 
 - name: RTL 4
   frequency: 224
-  mpeg_host: eeyore
+  tubby_hostname: eeyore
   device: /dev/video3
-  mpeg port: 8004
-  purkinje_host: eeyore
+  tubby_port: 8004
+  purkinje_hostname: eeyore
   purkinje_port: 9004
   active: true
 
 - name: RTL 5
   frequency: 232
-  mpeg_host: eeyore
+  tubby_hostname: eeyore
   device: /dev/video4
-  mpeg port: 8005
-  purkinje_host: eeyore
+  tubby_port: 8005
+  purkinje_hostname: eeyore
   purkinje_port: 9005
   active: true
 
 - name: SBS 6
   frequency: 280
-  mpeg_host: eeyore
+  tubby_hostname: eeyore
   device: /dev/video5
-  mpeg port: 8006
-  purkinje_host: eeyore
+  tubby_port: 8006
+  purkinje_hostname: eeyore
   purkinje_port: 9006
   active: true
 
