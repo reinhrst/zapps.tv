@@ -1,0 +1,117 @@
+- name: Nederland 1
+  frequency: 216
+  mpeg_host: eeyore
+  device: /dev/video0
+  mpeg port: 8001
+  purkinje_host: eeyore
+  purkinje_port: 9001
+  active: true
+
+- name: Nederland 2
+  frequency: 184
+  mpeg_host: eeyore
+  device: /dev/video1
+  mpeg port: 8002
+  purkinje_host: eeyore
+  purkinje_port: 9002
+  active: true
+
+- name: Nederland 3
+  frequency: 192
+  mpeg_host: eeyore
+  device: /dev/video2
+  mpeg port: 8003
+  purkinje_host: eeyore
+  purkinje_port: 9003
+  active: true
+
+- name: RTL 4
+  frequency: 224
+  mpeg_host: eeyore
+  device: /dev/video3
+  mpeg port: 8004
+  purkinje_host: eeyore
+  purkinje_port: 9004
+  active: true
+
+- name: RTL 5
+  frequency: 232
+  mpeg_host: eeyore
+  device: /dev/video4
+  mpeg port: 8005
+  purkinje_host: eeyore
+  purkinje_port: 9005
+  active: true
+
+- name: SBS 6
+  frequency: 280
+  mpeg_host: eeyore
+  device: /dev/video5
+  mpeg port: 8006
+  purkinje_host: eeyore
+  purkinje_port: 9006
+  active: true
+
+- name: RTL 7
+  frequency: 240
+  active: false
+
+- name: RTL 8
+  frequency: 536
+  active: false
+
+- name: Veronica
+  frequency: 672
+  active: false
+
+- name: Net 5
+  frequency: 272
+  active: false
+
+- name: Disney Channel
+  frequency: 175
+  active: false
+
+- name: BBC 1
+  frequency: 784
+  active: false
+
+- name: BBC 2
+  frequency: 792
+  active: false
+
+- name: CNN
+  frequency: 248
+  active: false
+
+- name: Discovery Channel
+  frequency: 800
+  active: false
+
+- name: Eurosport
+  frequency: 656
+  active: false
+
+- name: 768
+  frequency: MTV
+  active: false
+
+- name: National Geographic Channel
+  frequency: 544
+  active: false
+
+- name: Comedy Central
+  frequency: 288
+  active: false
+
+- name: Nickelodeon
+  frequency: 560
+  active: false
+
+- name: Animal Planet
+  frequency: 752
+  active: false
+
+- name: SLAM! TV
+  frequency: 520
+  active: false
