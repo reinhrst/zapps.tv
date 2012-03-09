@@ -6,8 +6,7 @@ if len(sys.argv) != 2:
   sys.exit(1)
 
 uberjar=sys.argv[1]
-dirname = os.path.dirname(__file__);
-channels = yaml.load(open(dirname+"/../channels.yaml"))
+channels = yaml.load(open("/etc/zapps/channels.yaml"))
 hostname=subprocess.check_output("hostname").decode("ascii").strip().split(".")[0] #the first one introducing non-ascii characters in a hostname will be hung by his feet in the main lobby until all eternety (and will break this code)
 for channel in channels:
   channel["uberjar"] = uberjar
