@@ -33,11 +33,12 @@
 (defn- trim-connection-data-if-too-long [connection-data]
   (when (> (count (:fingerprints @connection-data)) FINGERPRINTS_TRIM_LENGTH)
     (when (or (not (:initial-trim @connection-data)) (> (count (:fingerprints @connection-data)) (:initial-trim @connection-data)))
-      (log/infof "Purging fingerprints for %s" (:name @connection-data)) ;
+      (log/infof "Purging fingerprints for %s" (:name @connection-data))
       (swap! connection-data (fn [old-data]
                                (-> old-data
                                    (assoc-apply :fingerprints #(vec (drop (- (count %) FINGERPRINTS_TRIM_TO_LENGTH) %)))
-                                   (dissoc :initial-trim)))))))
+                                   (dissoc :initial-trim))))
+      (log/infof "Done purging fingerprints for %s" (:name @connection-data)))))
   
 
 (defn- handle-purkinje-protocol-1 [inputstream connection-data]
