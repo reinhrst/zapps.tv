@@ -59,10 +59,12 @@
           (tools/write-byte outputstream (count score-list))
           (doseq [score score-list]
             (tools/write-long outputstream (:id score))
-            (tools/write-byte outputstream 0xFF) ;todo nicely scale the score
+            (tools/write-byte outputstream (int (* (:score score) 0xFF)))
             (tools/write-long outputstream (:timeshift score))))
-        (catch IOException e
-          (log/infof "%s connection closed" handset-id))))))
+        (catch IOException e)
+        (finally
+          (.close socket)
+          (log/infof "%s: connection closed" handset-id))))))
                                               
     
 
