@@ -20,6 +20,5 @@
                                  :fingerprints ned2-fp
                                  :latest-frame-timestamp 1000305
                                  })])
-        input-sequence (map #(hash-map :fingerprint %1 :timestamp %2) tomatch-fp (range 1000000 9999999))
-        match-result (matcher input-sequence connection-datas)]
-    (println (seq (take 5 match-result)))))
+        input-sequence (map #(hash-map :fingerprint %1 :timestamp %2) tomatch-fp (range 1000000 9999999))]
+       (is (= match-result (seq (take 5 (matcher input-sequence connection-datas)))))))
