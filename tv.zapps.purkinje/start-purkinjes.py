@@ -14,7 +14,6 @@ for channel in channels:
       purkinje_command = "java -jar %(uberjar)s %(purkinje_port)s http://%(tubby_hostname)s:%(tubby_port)s" % {x:pipes.quote(str(y)) for x,y in channel.items()}
       command=("tmux", "new-session", "-d", "-s", "purkinje %s" % channel["name"], purkinje_command)
       print ('Now starting purkingje for %(name)s, source http://%(tubby_hostname)s:%(tubby_port)s to %(purkinje_port)s' % channel)
-      print (command)
       success = subprocess.call(command)
       if success != 0:
           print ("subprocess ended with value %d" % success)
