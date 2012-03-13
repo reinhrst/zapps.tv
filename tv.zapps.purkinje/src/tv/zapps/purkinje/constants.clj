@@ -52,5 +52,5 @@
    url-string
    "vlc://quit"
    "--sout"
-   (str "#transcode{acodec=s16l,channels=1,samplerate=" (float SAMPLE_FREQUENCY) "}:es{access-audio=file,mux-audio=raw,dst-audio=-}")
+   (str "#transcode{acodec=s16l,channels=1,samplerate=" (float SAMPLE_FREQUENCY) "}:es{access-audio=file,mux-audio=raw,dst-audio=-,access-video=none}")
    ])
