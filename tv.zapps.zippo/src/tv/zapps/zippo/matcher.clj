@@ -1,10 +1,10 @@
 (ns tv.zapps.zippo.matcher
   (:use [clojure.tools.logging :as log]))
 
-(def FINGERPRINTS_BEFORE_FIRST_MATCH 50)
-(def MATCH_EACH_X_FINGERPRINTS 20)
-(def MAXIMUM_FINGERPRINT_BACKLOG 1000)
-(def MAXIMUM_LOOKBACK_FRAMES 200)
+(def FINGERPRINTS_BEFORE_FIRST_MATCH 48)
+(def MATCH_EACH_X_FINGERPRINTS 16)
+(def MAXIMUM_FINGERPRINT_BACKLOG 2560)
+(def MAXIMUM_LOOKBACK_FRAMES 1000)
 
 (defn- extract-channel-data [connection-datas]
   (map
@@ -25,8 +25,7 @@
               diff (apply + (map #(Long/bitCount (bit-xor %1 %2))
                                  (reverse backlog)
                                  (reverse fingerprints)))
-              score (int (* (- noise-diff diff) (/ (- MAXIMUM_LOOKBACK_FRAMES (/ offset 2)) MAXIMUM_LOOKBACK_FRAMES)))]
-;          (log/debug offset (- noise-diff diff) (/ (- MAXIMUM_LOOKBACK_FRAMES (/ offset 2)) MAXIMUM_LOOKBACK_FRAMES))
+              score (int (* (- noise-diff diff) (/ (- MAXIMUM_LOOKBACK_FRAMES (/ offset 5)) MAXIMUM_LOOKBACK_FRAMES)))]
           (recur (pop fingerprints) (inc offset) (if (> score (:score best-match)) {:score score :offset offset} best-match)))
         best-match))))
           

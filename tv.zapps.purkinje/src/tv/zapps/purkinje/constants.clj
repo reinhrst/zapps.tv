@@ -1,6 +1,6 @@
 (ns tv.zapps.purkinje.constants)
 
-(def SAMPLE_FREQUENCY 11025/2)
+(def SAMPLE_FREQUENCY 5500)
 (def FINGERPRINT_INTERVAL 64)
 (def FRAME_LENGTH 2048)
 (def LOWEST_FREQUENCY 318) ;frequencies we care about for matching
@@ -52,5 +52,5 @@
    url-string
    "vlc://quit"
    "--sout"
-   (str "#transcode{acodec=s16l,channels=1,samplerate=" (float SAMPLE_FREQUENCY) "}:standard{access=file,mux=wav,dst=-}")
+   (str "#transcode{acodec=s16l,channels=1,samplerate=" (float SAMPLE_FREQUENCY) "}:es{access-audio=file,mux-audio=raw,dst-audio=-}")
    ])
