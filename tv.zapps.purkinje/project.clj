@@ -8,6 +8,6 @@
                                               com.sun.jdmk/jmxtools
                                               com.sun.jmx/jmxri]]
                  [jtransforms "2.4"]
-                 [nl.claude.tools "0.0.1"]]
+                 [nl.claude.tools "0.0.2"]]
                  
   :dev-dependencies [[swank-clojure "1.4.0"]])

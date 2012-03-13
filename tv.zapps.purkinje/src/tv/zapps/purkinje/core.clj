@@ -1,7 +1,7 @@
 (ns tv.zapps.purkinje.core
-  (:require tv.zapps.purkinje.fingerprinter tv.zapps.purkinje.provider tv.zapps.purkinje.constants nl.claude.tools.conversion)
-  (:use [clojure.tools.logging :as log])
-  (:import java.util.Date java.net.ServerSocket)
+  (:require tv.zapps.purkinje.fingerprinter tv.zapps.purkinje.provider tv.zapps.purkinje.constants nl.claude.tools.conversion nl.claude.tools.net)
+  (:require [clojure.tools.logging :as log])
+  (:import java.util.Date)
   (:gen-class)) ; needed else java won't start from it
 
 (def PROTOCOL_VERSION 1)
@@ -73,14 +73,6 @@
         (apply dispatch-int frst)
         (recur (rest timestamped-sequence))))))
 
-(defn new-connections-sequence [port]
-  "Opens the specified port. For each connection that is made, returns a Java.net.Socket"
-  (let [server-socket (java.net.ServerSocket. port)]
-    (letfn [(accept-loop []
-             (lazy-seq
-              (cons (.accept server-socket) (accept-loop))))]
-      (accept-loop))))
-
 (defn start-server
   "Starts accepting connections, does not return"
   ([port url-string] (start-server port url-string fingerprint-sequence-from-url-string))
@@ -90,7 +82,7 @@
       (map
        accept-connection
        connection-number
-       (new-connections-sequence port)))))
+       (nl.claude.tools.net/new-connections-sequence port)))))
 
 (defn -main [& args]
   (let [port (Integer/parseInt (nth args 0))
