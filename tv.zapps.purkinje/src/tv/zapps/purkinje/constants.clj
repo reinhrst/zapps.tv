@@ -16,7 +16,7 @@
 (def HANN_WINDOW
   (loop [result []] 
     (let [l (count result)]
-      (if (<= l FRAME_LENGTH)
+      (if (< l FRAME_LENGTH)
         (recur (conj result (hann-window-at (/ l FRAME_LENGTH))))
         result))))
 
