@@ -24,9 +24,17 @@
 (defn input-sequence-decorator [input-sequence]
   (map
    #(/
-     (if (pos? (bit-and % 0x8000)) (- 0x10000 %) %)
+     (if (pos? (bit-and 0x8000 %)) (- % 0x10000) %)
      0x8000)
    input-sequence))
+
+(defn print-fingerprint [fp]
+  (println
+   (str
+    (apply str (map
+                #(if (pos? (bit-and fp (bit-shift-left 1 %))) "X" " ")
+                (range 32)))
+    " (" fp ")")))
 
 (defn fingerprint-sequence [sample-sequence]
   "Creates a lazy sequence of fingerprints (long, 32-bit; java doesn't have unsigned int) from the input sequence
