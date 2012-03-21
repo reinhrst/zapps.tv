@@ -54,11 +54,21 @@
 
 - name: RTL 7
   frequency: 240
-  active: false
+  tubby_hostname: eeyore
+  device: /dev/video6
+  tubby_port: 8007
+  purkinje_hostname: eeyore
+  purkinje_port: 9007
+  active: true
 
 - name: RTL 8
   frequency: 536
-  active: false
+  tubby_hostname: eeyore
+  device: /dev/video7
+  tubby_port: 8008
+  purkinje_hostname: eeyore
+  purkinje_port: 9008
+  active: true
 
 - name: Veronica
   frequency: 672
