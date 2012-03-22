@@ -42,15 +42,27 @@
        ])
     FREQUENCY_BUCKET_EDGES_BY_FREQUENCY))
 
-
-(def VLC_BIN "cvlc")
-
-(defn VLC_COMMAND [url-string]
+(defn TUNING_COMMAND [device frequency-mhz]
   [
-   VLC_BIN
-   "-q"
-   url-string
-   "vlc://quit"
-   "--sout"
-   (str "#transcode{acodec=s16l,channels=1,samplerate=" (float SAMPLE_FREQUENCY) "}:es{access-audio=file,mux-audio=raw,dst-audio=-,access-video=none}")
+   "v4l2-ctl"
+   "-d"
+   device
+   "-f"
+   (format "%d" frequency-mhz)
+   ])
+
+(defn FFMPEG_COMMAND [device]
+  [
+   "ffmpeg"
+   "-i"
+   device
+   "-map"
+   "0.1"
+   "-ar"
+   (format "%d" SAMPLE_FREQUENCY)
+   "-ac"
+   "1"
+   "-f"
+   "f32be"
+   "pipe:1" ;output to stdout
    ])

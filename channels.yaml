@@ -1,74 +1,55 @@
 - name: Nederland 1
   frequency: 216
-  tubby_hostname: eeyore
   device: /dev/video0
-  tubby_port: 8001
   purkinje_hostname: eeyore
   purkinje_port: 9001
   active: true
 
 - name: Nederland 2
   frequency: 184
-  tubby_hostname: eeyore
   device: /dev/video1
-  tubby_port: 8002
   purkinje_hostname: eeyore
   purkinje_port: 9002
   active: true
 
 - name: Nederland 3
   frequency: 192
-  tubby_hostname: eeyore
   device: /dev/video2
-  tubby_port: 8003
   purkinje_hostname: eeyore
   purkinje_port: 9003
   active: true
 
 - name: RTL 4
   frequency: 224
-  tubby_hostname: eeyore
   device: /dev/video3
-  tubby_port: 8004
   purkinje_hostname: eeyore
   purkinje_port: 9004
   active: true
 
 - name: RTL 5
   frequency: 232
-  tubby_hostname: eeyore
   device: /dev/video4
-  tubby_port: 8005
   purkinje_hostname: eeyore
   purkinje_port: 9005
   active: true
 
 - name: SBS 6
   frequency: 280
-  tubby_hostname: eeyore
   device: /dev/video5
-  tubby_port: 8006
   purkinje_hostname: eeyore
   purkinje_port: 9006
   active: true
 
 - name: RTL 7
   frequency: 240
-  tubby_hostname: eeyore
   device: /dev/video6
-  tubby_port: 8007
   purkinje_hostname: eeyore
   purkinje_port: 9007
   active: true
 
 - name: RTL 8
   frequency: 536
-  tubby_hostname: eeyore
-  device: /dev/video7
-  tubby_port: 8008
-  purkinje_hostname: eeyore
-  purkinje_port: 9008
-  active: true
+  active: false
 
 - name: Veronica
   frequency: 672

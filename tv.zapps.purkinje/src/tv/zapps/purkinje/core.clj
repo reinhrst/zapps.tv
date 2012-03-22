@@ -10,16 +10,6 @@
   "Takes a date object and returns the timestamp such as required in the protocol specification"
   (-> date .getTime (* tv.zapps.purkinje.constants/SAMPLE_FREQUENCY) (/ tv.zapps.purkinje.constants/FINGERPRINT_INTERVAL 1000) long)) ;probably we would want a better resolution at one point but for now this is fine
 
-(defn fingerprint-sequence-from-url-string-for-test [url-string]
-  "Takes a url-string, returns a sequence of fingerprints. NOTE: this takes a real-timed stream, only use this for testing with local files"
-  (tv.zapps.purkinje.fingerprinter/fingerprint-sequence
-   (tv.zapps.purkinje.provider/real-timed-sequence-from-url url-string)))
-
-(defn fingerprint-sequence-from-url-string [url-string]
-  "Takes a url-string, returns a sequence of fingerprints"
-  (tv.zapps.purkinje.fingerprinter/fingerprint-sequence
-   (tv.zapps.purkinje.provider/sequence-from-url url-string)))
-
 (def connection-number (range))
 (def connections (atom []))
 
@@ -65,29 +55,32 @@
    timestamp))
 
 (defn- generator-and-dispatcher [my-sequence]
- (doall (take 200 my-sequence)) ; check that the sequence actually works, and make sure the timestamp is not influenced by startup delay
+ (doall (take 1000 my-sequence)) ; check that the sequence actually works, and make sure the timestamp is not influenced by startup delay
   (let [start-timestamp (calculate-timestamp (Date.))]
-    (log/infof "Gerenator started, at frame-timestamp %d, sequence looks healthy" start-timestamp)
-    (loop [timestamped-sequence (map vector (drop 200 my-sequence) (range start-timestamp Double/POSITIVE_INFINITY))]
+    (log/infof "Generator started, at frame-timestamp %d, sequence looks healthy" start-timestamp)
+    (loop [timestamped-sequence (map vector (drop 1000 my-sequence) (range start-timestamp Double/POSITIVE_INFINITY))]
       (when-let [frst (first timestamped-sequence)]
         (when (zero? (bit-and (second frst) 0xFFFF))
-          (log/debugf "Stream timestamp %d, wall clock timestamp %d, offset %d" (second frst) (calculate-timestamp (Date.)) (- (calculate-timestamp (Date.)) (second frst))))
+          (log/infof "Stream timestamp %d, wall clock timestamp %d, offset %d" (second frst) (calculate-timestamp (Date.)) (- (calculate-timestamp (Date.)) (second frst))))
         (apply dispatch-int frst)
         (recur (rest timestamped-sequence))))))
 
-(defn start-server
+(defn start-server [port device frequency-mhz]
   "Starts accepting connections, does not return"
-  ([port url-string] (start-server port url-string fingerprint-sequence-from-url-string))
-  ([port url-string sequence-function]
-     (.start (Thread. #(generator-and-dispatcher (sequence-function url-string))))
-     (dorun
-      (map
-       accept-connection
-       connection-number
-       (nl.claude.tools.net/new-connections-sequence port)))))
+  (.start (Thread. #(generator-and-dispatcher
+                     (tv.zapps.purkinje.fingerprinter/fingerprint-sequence
+                      (tv.zapps.purkinje.provider/sequence-from-device device frequency-mhz)))))
+  (dorun
+   (map
+    accept-connection
+    connection-number
+    (nl.claude.tools.net/new-connections-sequence port))))
 
 (defn -main [& args]
-  (let [port (Integer/parseInt (nth args 0))
-        url-string (nth args 1)]
-    (log/infof "Starting Purkinje server on port %d for stream url %s" port url-string)
-    (start-server port url-string)))
+  (if (not= (count args) 3)
+    (log/fatal "Start Purkinje with 3 arguments: purkinje #server-port# #device# #frequency-mhz#")
+    (let [port (Integer/parseInt (nth args 0))
+          device (nth args 1)
+          frequency-mhz (Integer/parseInt (nth args 2))]
+      (log/infof "Starting Purkinje server on port %d for %s on frequency %d" port device frequency-mhz)
+      (start-server port device frequency-mhz))))

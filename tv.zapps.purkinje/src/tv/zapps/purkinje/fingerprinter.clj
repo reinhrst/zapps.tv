@@ -1,6 +1,7 @@
 (ns tv.zapps.purkinje.fingerprinter
   "Has the functions to transform a sequence of samples into fingerprints"
-  (:use tv.zapps.purkinje.constants nl.claude.tools.dct))
+  (:use tv.zapps.purkinje.constants nl.claude.tools.dct)
+  (:require [clojure.tools.logging :as log]))
 
 (defn- windowize [samples window]
   (map * samples window))
@@ -21,15 +22,8 @@
           #(if (pos? %2) (bit-shift-left 1 %1) 0)
           (map - new-energy-diff old-energy-diff))))
 
-(defn input-sequence-decorator [input-sequence]
-  (map
-   #(/
-     (if (pos? (bit-and 0x8000 %)) (- % 0x10000) %)
-     0x8000)
-   input-sequence))
-
-(defn print-fingerprint [fp]
-  (println
+(defn debug-print-fingerprint [fp]
+  (log/debug
    (str
     (apply str (map
                 #(if (pos? (bit-and fp (bit-shift-left 1 %))) "X" " ")
@@ -46,8 +40,9 @@
                 (when (= (count new-buffer) FRAME_LENGTH) ;else we ran out of buffer, basically the stream ended
                   (let [new-energy-diff (calculate-energy-diff new-buffer)
                         fingerprint (calculate-fingerprint new-energy-diff old-energy-diff)]
+;                    (debug-print-fingerprint fingerprint)
                     (cons fingerprint (worker new-buffer new-input-sequence new-energy-diff)))))))]
     (let [buffer-size FRAME_LENGTH
-          initial-buffer (take buffer-size (input-sequence-decorator sample-sequence))
-          working-sequence (drop buffer-size (input-sequence-decorator sample-sequence))]
+          initial-buffer (take buffer-size sample-sequence)
+          working-sequence (drop buffer-size sample-sequence)]
       (worker initial-buffer working-sequence (calculate-energy-diff initial-buffer)))))
