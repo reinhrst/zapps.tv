@@ -12,7 +12,7 @@ for channel in channels:
   channel["uberjar"] = uberjar
   if channel["active"] and channel["purkinje_hostname"] == hostname:
       purkinje_command = "java -jar %(uberjar)s %(purkinje_port)s %(device)s %(frequency)s" % {x:pipes.quote(str(y)) for x,y in channel.items()}
-      command=("tmux", "new-session", "-d", "-s", "purkinje %s" % channel["name"], purkinje_command)
+      command=("tmux", "new-session", "-x", "200", "-d", "-s", "purkinje %s" % channel["name"], purkinje_command)
       print ('Now starting purkingje for %(name)s, source %(device)s @ %(frequency)s MHz to %(purkinje_port)s' % channel)
       success = subprocess.call(command)
       if success != 0:
