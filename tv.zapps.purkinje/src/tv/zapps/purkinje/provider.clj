@@ -18,11 +18,15 @@
    (into-array String)
    (.exec (Runtime/getRuntime))
    (.waitFor))
-  (->>
-   device
-   FFMPEG_COMMAND ;already makes the stream mono 16 bit at the right sample-rate
-   (into-array String)
-   (.exec (Runtime/getRuntime))
-   .getInputStream
-   (DataInputStream.)
-   lazy-sequence-from-stream))
+  (let [process (->>
+                 device
+                 FFMPEG_COMMAND ;already makes the stream mono 16 bit at the right sample-rate
+                 (into-array String)
+                 (.exec (Runtime/getRuntime)))
+        errorstream (.getErrorStream process)]
+    (.start (.Thread #(loop [] (.read errorstream) (recur)))) ; dump errorstream to stdout -- perhaps an idea to save last 200 bytes in case of error?
+    (->
+     process
+     .getInputStream
+     (DataInputStream.)
+     lazy-sequence-from-stream)))
