@@ -18,16 +18,22 @@
     (take size (drop read-pos my-sequence))))
 
 (defn fingerprint-sequence [filename]
-  (println "Reading" filename)
-  (let [input-stream (clojure.java.io/input-stream filename)]
-    (read-bytes input-stream 8); protocol nr
-    (read-bytes input-stream 8); timestamp
-    (loop [fingerprints []]
-      (if (and (> (.available input-stream) 4) (< (count fingerprints) 100000))
-        (recur (conj fingerprints (-> input-stream (read-bytes 4) byte-array-be-to-number)))
-        (do
-          (.close input-stream)
-          fingerprints)))))
+  (println "#Reading" filename)
+  (let [totake 200000
+        fps (let [input-stream (clojure.java.io/input-stream filename)]
+              (read-bytes input-stream 8); protocol nr
+              (read-bytes input-stream 8); timestamp
+              (loop [fingerprints []]
+                (if (> (.available input-stream) 4)
+                  (recur (conj fingerprints (-> input-stream (read-bytes 4) byte-array-be-to-number)))
+                  (do
+                    (.close input-stream)
+                    fingerprints))))
+        size (count fps)
+        start (int (* (rand) (- size totake)))]
+    (vec (take totake (drop start fps)))))
+    
+    
 
 (defn doaverage [matchto-sequences fingerprints surroundings]
   (let [pool (Executors/newFixedThreadPool (+ 2 (.. Runtime getRuntime availableProcessors)))
@@ -53,32 +59,16 @@
 
 
 (defn -main [& args]
-  (let [fingerprint-sequences (time (doall (pmap fingerprint-sequence args)))
-        results (apply merge
-                       (for [run (range 5)
-                             size (range 88 257)
-                             surroundings [0 1 2 1000]]
-                         (let [all-fpss (shuffle fingerprint-sequences)
-                               source-sequence (first all-fpss)
-                               matchto-sequences (rest all-fpss)
-                               fingerprints (choose-fingerprint source-sequence size)]
-                           (printf "Size %3d, surroundings %4d run %1d;  " size, surroundings, run)
-                           (flush)
-                           (let [stat-data (doaverage matchto-sequences fingerprints surroundings)
-                                 mean (/ (apply + stat-data) (count stat-data))
-                                 var (/ (apply + (map #(* (- mean %) (- mean %)) stat-data)) (count stat-data))
-                                 dist (for [x (range (int (- mean (Math/sqrt var))) (int (- mean (* 8 (Math/sqrt var)))) -1)]
-                                        [x (/ (count (filter (partial < x) stat-data)) (count stat-data))])]
-                             (let [myresult {{:size size, :surroundings surroundings, :run run}
-                                             {:p (float (/ mean (* 32 size)))
-                                              :n (count stat-data)
-                                              :var (float var)
-                                              :0.90 (first (first (drop-while #(> 0.9 (second %)) dist)))
-                                              :0.95 (first (first (drop-while #(> 0.95 (second %)) dist)))
-                                              :0.99 (first (first (drop-while #(> 0.99 (second %)) dist)))
-                                              :0.995 (first (first (drop-while #(> 0.995 (second %)) dist)))
-                                              :0.999 (first (first (drop-while #(> 0.999 (second %)) dist)))}}]
-                               (println myresult)
-                                                myresult)))))]
-    (doseq [k (sort-by #(+ (* 100000 (:size %)) (*  10 (:surroundings %)) (:run %)) (keys results))]
-      (println k (results k)))))
+  (doseq [run (range 10)]
+    (println "#Run" run)
+    (let [fingerprint-sequences (time (doall (pmap fingerprint-sequence args)))
+          all-fpss (shuffle fingerprint-sequences)
+          source-sequence (first all-fpss)
+          matchto-sequences (rest all-fpss)
+          fingerprints (choose-fingerprint source-sequence 256)]
+      (doseq [size (range 1 257)
+              surroundings [2 1000]]
+        (printf "%d %d " size, surroundings)
+        (flush)
+        (let [stat-data (doaverage matchto-sequences (take size fingerprints) surroundings)]
+          (println (apply str (interpose " " stat-data))))))))
