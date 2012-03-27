@@ -24,7 +24,7 @@
                  (into-array String)
                  (.exec (Runtime/getRuntime)))
         errorstream (.getErrorStream process)]
-    (.start (.Thread #(loop [] (.read errorstream) (recur)))) ; dump errorstream to stdout -- perhaps an idea to save last 200 bytes in case of error?
+    (.start (Thread. #(loop [] (.read errorstream) (recur)))) ; dump errorstream to /dev/null -- perhaps an idea to save last 200 bytes in case of error?
     (->
      process
      .getInputStream
