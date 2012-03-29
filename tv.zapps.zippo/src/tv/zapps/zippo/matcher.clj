@@ -138,7 +138,7 @@
    :post [(or (nil? %) (vector-of-type? (vector %) Scoring [:size :diff :offset :certainty :channel-id]))]}
   (let [channel-data-to-consider (subvec channel-data (max 0 (- (count channel-data) (count data-to-match) MAXIMUM_LOOKBACK_FRAMES)))
         differences (calculate-differences data-to-match channel-data-to-consider)
-        best-match (find-best-element differences #(compare (:diff %1) (:diff %2)))
+        best-match (find-best-element differences #(compare (:diff %2) (:diff %1)))
         certainty (get-certainty (count data-to-match) MAXIMUM_LOOKBACK_FRAMES (:diff best-match))]
     (when (> certainty POSITIVE_CORRELATION_CUTOFF)
       (map->Scoring
@@ -165,7 +165,7 @@
   (if scoring
     (let [channel-id (:channel-id scoring)
           match-as-new-data #(match data-to-match channels-data-and-ids nil)]
-      (if-let [channel-data (:data (some #(= (:id %) channel-id)))]
+      (if-let [channel-data (:data (some #(= (:id %) channel-id) channels-data-and-ids))]
         (if-let [new-scoring (match-on-location-single-channel data-to-match channel-data channel-id scoring)]
           new-scoring
           (do
@@ -180,19 +180,19 @@
         (map-truth
          #(match-no-history-single-channel data-to-match (:data %) (:id %))
          channels-data-and-ids)
-        #(compare (:diff %1) (:diff %2)))
+        #(compare (:diff %2) (:diff %1)))
        (when (>= (count data-to-match) (+ 10 MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION)) ; map just the newest data
          (find-best-element
           (map-truth
            #(match-no-history-single-channel (subvec data-to-match (- (count data-to-match) MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION)) (:data %) (:id %))
            channels-data-and-ids)
-          #(compare (:diff %1) (:diff %2))))
+          #(compare (:diff %2) (:diff %1))))
        (when (>= (count data-to-match) (+ 10 MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION)) ; map just the oldest data
          (find-best-element
           (map-truth
            #(match-no-history-single-channel (subvec data-to-match 0 MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION) (:data %) (:id %))
            channels-data-and-ids)
-          #(compare (:diff %1) (:diff %2))))))))
+          #(compare (:diff %2) (:diff %1))))))))
       
     
     

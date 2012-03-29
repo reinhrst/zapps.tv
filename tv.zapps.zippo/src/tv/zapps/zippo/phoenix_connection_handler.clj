@@ -34,13 +34,12 @@
                              fingerprints
                              (range timestamp-first-fingerprint Double/POSITIVE_INFINITY))))
         scoring (matcher/match data-to-match channels-data-and-ids (:scoring state))]
-    (log/debugf "%s: read %d fingerprints, scoring %s" connection-name number-of-fingerprints scoring)
-    (.writeInt output-stream 1) ; reply number; todo, must be in mapping
+    (log/debugf "%s: read %d fingerprints (ts %d), scoring %s" connection-name number-of-fingerprints timestamp-first-fingerprint (pr-str scoring))
     (if scoring
-      (do
-        (.writeByte output-stream 1)
+      (doto output-stream
+        (.writeByte 1)
         (.writeLong (:channel-id scoring))
-        (.writeByte (int (* 256 (:certainty scoring))))
+        (.writeByte (int (* 255 (:certainty scoring))))
         (.writeLong (:offset scoring)))
       (.writeByte output-stream 0))
     (merge state {:scoring scoring, :received-data-to-match data-to-match})))
@@ -76,12 +75,17 @@
 (defn- handle-connection [socket channel-connections-data-atom]
   (let [connection-name (format "%s:%d" (.getInetAddress socket) (.getPort socket))]
     (try
-      (let [input-stream (-> socket .getInputStream DataInputStream.)
-            output-stream (-> socket .getOutputStream DataOutputStream.)
-            protocol-version (.readLong input-stream)]
-        (if (= protocol-version 2)
-          (handle-protocol-v2 connection-name input-stream output-stream channel-connections-data-atom)
-          (log/errorf "%s: Unknown protocol version %d" connection-name protocol-version)))
+      (try
+        (let [input-stream (-> socket .getInputStream DataInputStream.)
+              output-stream (-> socket .getOutputStream DataOutputStream.)
+              protocol-version (.readLong input-stream)]
+          (if (= protocol-version 2)
+            (handle-protocol-v2 connection-name input-stream output-stream channel-connections-data-atom)
+            (log/errorf "%s: Unknown protocol version %d" connection-name protocol-version)))
+        (catch Exception e
+          (if (= (class e) RuntimeException)
+            (throw (.getCause e))
+            (throw e))))
       (catch EOFException e (log/errorf "%s: Received EOFException" connection-name))
       (catch IOException e (log/errorf "%s: Received IOException" connection-name))
       (finally
