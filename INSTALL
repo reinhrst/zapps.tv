@@ -1,3 +1,0 @@
-#Two libraries are needed (in addition to clojure and java):
-wget http://www.tritonus.org/tritonus_share-0.3.6.jar -O /Library/Java/Extensions/tritonus_share-0.3.6.jar
-wget http://www.tritonus.org/tritonus_remaining-0.3.6.jar -O /Library/Java/Extensions/tritonus_remaining-0.3.6.jar

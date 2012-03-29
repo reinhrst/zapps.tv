@@ -1,1 +1,0 @@
-I got plenty of "IllegalArgumentException Unsupported conversion" errors. So it seems that by default java can't resample or do stereo/mono conversion. An external plugin is needed for that: http://www.jsresources.org/examples/AudioConverter.html
