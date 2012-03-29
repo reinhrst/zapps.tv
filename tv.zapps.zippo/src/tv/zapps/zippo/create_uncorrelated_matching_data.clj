@@ -70,7 +70,7 @@
 (declare DATA)
 
 (defn get-uncorrelated-results [size surroundings]
-  (DATA {:size size :surroundings surroundings :run 0}))
+  (DATA {:size size :surroundings surroundings}))
 
 (def DATA {\n"
 (apply str

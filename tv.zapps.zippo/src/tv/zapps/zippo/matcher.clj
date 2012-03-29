@@ -1,106 +1,198 @@
 (ns tv.zapps.zippo.matcher
   (:use [clojure.tools.logging :as log])
-  (:import org.apache.commons.math3.distribution.NormalDistribution))
+  (:require [tv.zapps.zippo.uncorrelated-matching-data]))
 
-(def FINGERPRINTS_BEFORE_FIRST_MATCH 48)
-(def MATCH_EACH_X_FINGERPRINTS 16)
-(def MAXIMUM_FINGERPRINT_BACKLOG 2560)
+(def MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION 20)
 (def MAXIMUM_LOOKBACK_FRAMES 1000)
+(def MAXIMUM_FINGERPRINTS_IN_AGENT 1000)
+(def MAXIMUM_FINGERPRINTS_FOR_MATCH 128)
+(def POSITIVE_CORRELATION_CUTOFF 0.9)
+(def SURROUNDINGS_FOR_ON_LOCATION_MATCH 2)
 
-(defn- extract-channel-data [connection-datas]
-  (map
-   #(let [channel-data (deref %1)]
-      {:id (channel-data :id)
-       :reverse-fingerprints (take (+ MAXIMUM_LOOKBACK_FRAMES MAXIMUM_FINGERPRINT_BACKLOG) (concat (reverse (channel-data :fingerprints)) (repeat 0)))
-       :latest-frame-timestamp (channel-data :latest-frame-timestamp)})
-   connection-datas))
+(defrecord Scoring
+    [channel-id
+     size
+     diff
+     offset ; the ammount that the matched timestamp is ahead of the source-timestamp
+     certainty])
 
-(defn- match-clean-single-channel[backlog reverse-channel-fingerprints]
-  (let [reverse-backlog (reverse backlog)]
-    (loop [reverse-fingerprints reverse-channel-fingerprints, offset 0, best-match {:score 0 :offset 0}]
-      (if (< offset MAXIMUM_LOOKBACK_FRAMES)
-        (let [noise-diff (* 32 (count backlog) 1/2); when there is no correlation, we expect half of all bits to be different
-              diff (apply + (map #(Long/bitCount (bit-xor %1 %2))
-                                 reverse-backlog
-                                 reverse-fingerprints))
-              score (int (* (- noise-diff diff) (/ (- MAXIMUM_LOOKBACK_FRAMES (/ offset 5)) MAXIMUM_LOOKBACK_FRAMES)))]
-          (recur (rest reverse-fingerprints) (inc offset) (if (> score (:score best-match)) {:score score :offset offset :diff diff} best-match)))
-        (let [n (* 32 (count backlog))
-              p 0.58 ;since we look for the best match, and there is some correlation between subsequent samples anyways, we need a value p > 0.5 for scoring. The chosen value is quite arbitrary though, but seems to work well :)
-              mean (double (* n p))
-              sd (double (Math/sqrt (* mean (- 1 p))))]
-          {:offset (:offset best-match) :score (- (* 2 (.cumulativeProbability (NormalDistribution. mean sd) (- n (:diff best-match)))) 1)})))))
-          
+(defrecord Differences
+    [diff
+     offset])
 
-(defn- match-clean [backlog channel-data]
-  "Match without worrying about previous scores"
-  (let [match-results (map
-                       (fn [{id :id reverse-fingerprints :reverse-fingerprints latest-frame-timestamp :latest-frame-timestamp}]
-                         (let [result (match-clean-single-channel backlog reverse-fingerprints)]
-                           {:id id
-                            :match-end-timestamp (- latest-frame-timestamp (:offset result))
-                            :score (:score result)}))
-                       channel-data)]
-    (sort-by :score > match-results)))
-     
+(defn- valid-to-match-data? [data]
+  (and
+   (vector? data)
+   (every? identity
+           (map
+            #(and
+              (:fingerprint %1)
+              (:timestamp %1)
+              (:fingerprint %2)
+              (:timestamp %2)
+              (> (:timestamp %2) (:timestamp %1)))
+            data
+            (rest data)))))
 
+(defn- valid-channel-data? [data]
+  (and
+   (vector? data)
+   (every? identity
+           (map
+            #(and
+              (:fingerprint %1)
+              (:timestamp %1)
+              (:fingerprint %2)
+              (:timestamp %2)
+              (<= 0 (- (:timestamp %2) (:timestamp %1)) 2)) ; should normally be 1, but may be 0 or 2 every now and then to correct for clock skew
+            data
+            (rest data)))))
 
-(defn- matchme [last-scores frames-since-last-match backlog channel-data]
-  "This function produces new scores on the basis of old ones and new information
-   - last-scores: sequence of maps (:id, :score, :match-end-timestamp)
-   - frames-since-last-match: number of frames received since last time function was called (since the last-scores)
-   - backlog: stored fingerprints that need to be matched
-   - channel-data: map with {:id, :fingerprints, :latest-frame-timestamp}"
-  (if (empty? last-scores)
-    (match-clean backlog channel-data)
-    (do
-      (log/error "Going into uncharted waters: dumping prevous scores, using clean match")
-      (match-clean backlog channel-data))))
+(defn- vector-of-type?
+  ([data type] (vector-of-type? data type [] []))
+  ([data type true-keys] (vector-of-type? data type true-keys []))
+  ([data type true-keys false-keys]
+     (and
+      (vector? data)
+      (every? #(= (class %) type) data)
+      (every? #(every? (partial get %) true-keys) data)
+      (every? #(not-any? (partial get %) false-keys) data))))
+      
+  
 
-(defn taker [backlog latest-backlog-timestamp input-sequence]
-  "Reads enough from the backlog. The minimum size after reading must be FINGERPRINTS_BEFORE_FIRST_MATCH, and each time at least MATCH_EACH_X_FINGERPRINTS items must be read. If, however, there is a gap in timestamps, the whole backlog is discarded, and a FINGERPRINTS_BEFORE_FIRST_MATCH must be read in the new timestamps
-Returns [backlog latest-backlog-timestamp input-sequence]"
-  (let [nrtotake (if (zero? (count backlog)) FINGERPRINTS_BEFORE_FIRST_MATCH MATCH_EACH_X_FINGERPRINTS)
-        taken-items (take nrtotake input-sequence)
-        rest-sequence (drop nrtotake input-sequence)]
-    (if (nil? (seq taken-items))
-      nil ;connection was broken
-      (loop [new-backlog backlog
-             expected-timestamp (if (pos? latest-backlog-timestamp) (inc latest-backlog-timestamp) (:timestamp (first taken-items)))
-             loop-items taken-items]
-        (if (seq loop-items)
-          (if (= (:timestamp (first loop-items)) expected-timestamp)
-            (recur (conj new-backlog (:fingerprint (first loop-items))) (inc expected-timestamp) (rest loop-items))
-            (taker [] 0 (concat loop-items rest-sequence)))
-          [(if (> (count new-backlog) MAXIMUM_FINGERPRINT_BACKLOG) (vec (drop (- (count new-backlog) MAXIMUM_FINGERPRINT_BACKLOG) new-backlog)) new-backlog)
-           (dec expected-timestamp)
-           rest-sequence])))))
+(defn- calculate-differences [received-data-to-match, channel-data]
+  {:pre [(valid-to-match-data? received-data-to-match)
+         (valid-channel-data? channel-data)]
+   :post [(vector-of-type? % Differences [:diff :offset])]}
+  "(do (doall (map  println (calculate-differences
+       [{:timestamp 1, :fingerprint 24} {:timestamp 5, :fingerprint 28}]
+       (vec (map #(identity {:timestamp %, :fingerprint %}) (range 30)))))) nil)"
 
+   (let [to-match-timestamp-diff (map #(- (:timestamp %) (:timestamp (first received-data-to-match))) received-data-to-match)
+        max-timestamp-difference (last to-match-timestamp-diff)]
+    (loop [stream-offset 0, differences []]
+      (if (> (count channel-data) (+ stream-offset max-timestamp-difference))
+        (recur
+         (inc stream-offset)
+         (conj
+          differences
+          (map->Differences
+           {:offset (- (:timestamp (first received-data-to-match)) (:timestamp (nth channel-data stream-offset))) 
+            :diff (apply +
+                         (map (fn [{fingerprint-to-match :fingerprint} timestamp-diff-with-first-sample]
+                                (Long/bitCount (bit-xor
+                                                fingerprint-to-match
+                                                (:fingerprint (nth channel-data (+ stream-offset timestamp-diff-with-first-sample))))))
+                              received-data-to-match
+                              to-match-timestamp-diff))})))
+        differences))))
 
-(defn matcher [input-sequence connection-datas]
-  "This function tries to match a live fingerprinted stream, to a set of other live streams
+(defn- get-certainty [size surroundings diff]
+  (nth (tv.zapps.zippo.uncorrelated-matching-data/get-uncorrelated-results size surroundings) diff))
 
-   - input-sequence is a lazy sequence of {:fingerprint, :timestamp}. This is expected to be live data, so new fingerprints coming available only after a while.
-   - connection-datas is an atom, pointing to a collection of atoms, each one pointing to a map with at least the keys
-     :id
-     :fingerprints
-     :latest-frame-timestamp
+(defn- find-best-element [data comperator]
+  (apply (fn helper
+           ([] nil)
+           ([p1] p1)
+           ([p1 p2] (if (pos? (comperator p1 p2)) p1 p2))
+           ([p1 p2 & args] (apply (partial helper (helper p1 p2)) args)))
+         data))
 
-   It will return a lazy-sequence (that won't end until the input-sequence runs out), each element a collection containing
-     :id
-     :score
-     :timeshift
-   This will mean that a certain channel (:id) has a certain matching score, with a certain timeshift. The collection will be ordered by score, meaning that the first one being the best match. The lazy sequence may contain empty collections. An empty collection means that no match to any channel could be made."
-  (letfn [(myloop [input-sequence backlog latest-backlog-timestamp last-scores]
-            (lazy-seq
-              (let [[new-backlog new-latest-backlog-timestamp new-input-sequence] (taker backlog latest-backlog-timestamp input-sequence)]
-                (when new-backlog ;else the connection has ended
-                  (let [fingerprints (extract-channel-data @connection-datas)
-                        scores (matchme last-scores 0 new-backlog fingerprints)]
-                    (cons
-                     (keep
-                      #(when (> (:score %) 0.2)
-                         (-> % (assoc :timeshift (- new-latest-backlog-timestamp (:match-end-timestamp %))) (dissoc :match-end-timestamp)))
-                      scores)
-                     (myloop new-input-sequence new-backlog new-latest-backlog-timestamp scores)))))))]
-    (myloop input-sequence[] 0 [])))
+(defn match-on-location-single-channel [received-data-to-match channel-data channel-id scoring]
+  {:pre [(valid-to-match-data? received-data-to-match)
+         (valid-channel-data? channel-data)
+         (vector-of-type? (vector scoring) Scoring [:size :diff :offset])]
+   :post [(vector-of-type? (vector %) Scoring [:size :diff :offset :certainty :channel-id])]}
+  (let [channel-to-matching-timestamp-correction (:offset scoring)
+        matching-to-channel-timestamp-correction (- channel-to-matching-timestamp-correction)
+        channel-start-timestamp (:timestamp (first channel-data))
+        channel-end-timestamp (:timestamp (last channel-data))
+        data-to-match (vec
+                       (filter
+                        #(<=
+                          (+ channel-start-timestamp channel-to-matching-timestamp-correction)
+                          (:timestamp %)
+                          (+ channel-end-timestamp channel-to-matching-timestamp-correction)) received-data-to-match))
+        to-match-start-timestamp (:timestamp (first data-to-match))
+        to-match-end-timestamp (:timestamp (last data-to-match))
+        channel-data-to-consider (vec
+                                  (take (+ (- to-match-end-timestamp to-match-start-timestamp) 2) ; we take the window one wider on each side
+                                        (filter
+                                         #(<= (+ to-match-start-timestamp matching-to-channel-timestamp-correction -1) (:timestamp %))
+                                         channel-data)))
+        differences (calculate-differences data-to-match channel-data-to-consider)
+        best-match (find-best-element differences #(compare (:diff %1) (:diff %2)))
+        certainty (get-certainty (count data-to-match) SURROUNDINGS_FOR_ON_LOCATION_MATCH (:diff best-match))]
+    (when (> certainty POSITIVE_CORRELATION_CUTOFF)
+      (map->Scoring
+       {:size (count data-to-match)
+        :diff (:diff best-match)
+        :offset (:offset best-match)
+        :certainty certainty
+        :channel-id channel-id}))))
+
+(defn match-no-history-single-channel [data-to-match, channel-data, channel-id]
+  {:pre [(valid-to-match-data? data-to-match)
+         (<= (count data-to-match) MAXIMUM_FINGERPRINTS_FOR_MATCH)
+         (valid-channel-data? channel-data)]
+   :post [(or (nil? %) (vector-of-type? (vector %) Scoring [:size :diff :offset :certainty :channel-id]))]}
+  (let [channel-data-to-consider (subvec channel-data (max 0 (- (count channel-data) (count data-to-match) MAXIMUM_LOOKBACK_FRAMES)))
+        differences (calculate-differences data-to-match channel-data-to-consider)
+        best-match (find-best-element differences #(compare (:diff %1) (:diff %2)))
+        certainty (get-certainty (count data-to-match) MAXIMUM_LOOKBACK_FRAMES (:diff best-match))]
+    (when (> certainty POSITIVE_CORRELATION_CUTOFF)
+      (map->Scoring
+       {:size (count data-to-match)
+        :diff (:diff best-match)
+        :offset (:offset best-match)
+        :certainty certainty
+        :channel-id channel-id}))))
+
+(defmacro lazy-or [& block]
+  (case (count block)
+     0 nil
+     1 (first block)
+     `(if-let [result# ~(first block)]
+         result#
+         (lazy-or ~@(rest block)))))
+
+(defmacro map-truth [& block]
+  `(filter identity (map ~@block)))
+
+(defn match [data-to-match, channels-data-and-ids, scoring]
+  {:pre [(<= (count data-to-match) MAXIMUM_FINGERPRINTS_FOR_MATCH)]
+   :post [(or (nil? %) (= (class %) Scoring))]}
+  (if scoring
+    (let [channel-id (:channel-id scoring)
+          match-as-new-data #(match data-to-match channels-data-and-ids nil)]
+      (if-let [channel-data (:data (some #(= (:id %) channel-id)))]
+        (if-let [new-scoring (match-on-location-single-channel data-to-match channel-data channel-id scoring)]
+          new-scoring
+          (do
+            (log/debug "matching with previous score failed")
+            (match-as-new-data)))
+        (do
+          (log/errorf "Can't find back previously matched channel %d, ignoring score" channel-id)
+          (match-as-new-data))))
+    (when (>= (count data-to-match) MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION)
+      (lazy-or
+       (find-best-element
+        (map-truth
+         #(match-no-history-single-channel data-to-match (:data %) (:id %))
+         channels-data-and-ids)
+        #(compare (:diff %1) (:diff %2)))
+       (when (>= (count data-to-match) (+ 10 MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION)) ; map just the newest data
+         (find-best-element
+          (map-truth
+           #(match-no-history-single-channel (subvec data-to-match (- (count data-to-match) MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION)) (:data %) (:id %))
+           channels-data-and-ids)
+          #(compare (:diff %1) (:diff %2))))
+       (when (>= (count data-to-match) (+ 10 MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION)) ; map just the oldest data
+         (find-best-element
+          (map-truth
+           #(match-no-history-single-channel (subvec data-to-match 0 MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION) (:data %) (:id %))
+           channels-data-and-ids)
+          #(compare (:diff %1) (:diff %2))))))))
+      
+    
+    
