@@ -26,7 +26,8 @@
   (let [channels-data-and-ids (create-channels-data-and-ids @channel-connections-data-atom)
         number-of-fingerprints (.readUnsignedByte input-stream)
         timestamp-first-fingerprint (.readLong input-stream)
-        fingerprints (repeatedly number-of-fingerprints #(bit-and 0xFFFFFFFF (long (.readInt input-stream))))
+        fingerprints (doall (repeatedly number-of-fingerprints #(.readInt input-stream)))
+        start-time (System/nanoTime)
         data-to-match (vec (concat
                             (take-last (- matcher/MAXIMUM_FINGERPRINTS_FOR_MATCH number-of-fingerprints) (:received-data-to-match state))
                             (map
@@ -34,7 +35,7 @@
                              fingerprints
                              (range timestamp-first-fingerprint Double/POSITIVE_INFINITY))))
         scoring (matcher/match data-to-match channels-data-and-ids (:scoring state))]
-    (log/debugf "%s: read %d fingerprints (ts %d), scoring %s" connection-name number-of-fingerprints timestamp-first-fingerprint (pr-str scoring))
+    (log/debugf "%s: read %d fingerprints (ts %d), scoring %s in %7.3f ms" connection-name number-of-fingerprints timestamp-first-fingerprint (pr-str (when scoring (assoc scoring :certainty (float (:certainty scoring))))) (float (/ (- (System/nanoTime) start-time) 1000000)))
     (if scoring
       (doto output-stream
         (.writeByte 1)
