@@ -5,7 +5,7 @@
 
 (defrecord State
     [scoring
-     received-data-to-match])
+     received-data-seqs-to-match])
 
 (defn create-channels-data-and-ids [connections-data]
   (map
@@ -14,26 +14,26 @@
            latest-fingerprints (take-last (+ matcher/MAXIMUM_LOOKBACK_FRAMES matcher/MAXIMUM_FINGERPRINTS_FOR_MATCH) (:fingerprints connection-data))
            start-timestamp (- (:latest-frame-timestamp connection-data) (count latest-fingerprints))]
        {:id (connection-data :id)
-        :data (vec
-               (map
-                (fn [fingerprint timestamp]
-                  {:fingerprint fingerprint :timestamp timestamp})
-                latest-fingerprints
-                (range start-timestamp Double/POSITIVE_INFINITY)))}))
+        :data {:fingerprints (int-array latest-fingerprints)
+               :timestamps (long-array (range start-timestamp (+ start-timestamp (count latest-fingerprints))))}}))
    connections-data))
 
 (defn- handle-match-fingerprints-v1 [connection-name input-stream output-stream channel-connections-data-atom state]
-  (let [channels-data-and-ids (create-channels-data-and-ids @channel-connections-data-atom)
+  (let [channels-data-and-ids (time (create-channels-data-and-ids @channel-connections-data-atom))
         number-of-fingerprints (.readUnsignedByte input-stream)
         timestamp-first-fingerprint (.readLong input-stream)
         fingerprints (doall (repeatedly number-of-fingerprints #(.readInt input-stream)))
         start-time (System/nanoTime)
-        data-to-match (vec (concat
-                            (take-last (- matcher/MAXIMUM_FINGERPRINTS_FOR_MATCH number-of-fingerprints) (:received-data-to-match state))
-                            (map
-                             (fn [fingerprint timestamp] {:fingerprint fingerprint :timestamp timestamp})
-                             fingerprints
-                             (range timestamp-first-fingerprint Double/POSITIVE_INFINITY))))
+        data-seqs-to-match {:fingerprints (take-last matcher/MAXIMUM_FINGERPRINTS_FOR_MATCH
+                                                     (concat
+                                                      (:fingerprints (:received-data-seqs-to-match state))
+                                                      fingerprints))
+                            :timestamps (take-last matcher/MAXIMUM_FINGERPRINTS_FOR_MATCH
+                                                     (concat
+                                                      (:timestamps (:received-data-seqs-to-match state))
+                                                      (range timestamp-first-fingerprint (+ timestamp-first-fingerprint number-of-fingerprints))))}
+        data-to-match {:fingerprints (int-array (:fingerprints data-seqs-to-match))
+                       :timestamps (long-array (:timestamps data-seqs-to-match))}
         scoring (matcher/match data-to-match channels-data-and-ids (:scoring state))]
     (log/debugf "%s: read %d fingerprints (ts %d), scoring %s in %7.3f ms" connection-name number-of-fingerprints timestamp-first-fingerprint (pr-str (when scoring (assoc scoring :certainty (float (:certainty scoring))))) (float (/ (- (System/nanoTime) start-time) 1000000)))
     (if scoring
@@ -43,11 +43,11 @@
         (.writeByte (int (* 255 (:certainty scoring))))
         (.writeLong (:offset scoring)))
       (.writeByte output-stream 0))
-    (merge state {:scoring scoring, :received-data-to-match data-to-match})))
+    (merge state {:scoring scoring, :received-data-seqs-to-match data-to-match})))
 
 (defn- handle-get-channel-list-v1 [connection-name input-stream output-stream channel-connections-data-atom state])
 
-(def initial-state (map->State {:scoring nil, :received-data-to-match []}))
+(def initial-state (map->State {:scoring nil, :received-data-seqs-to-match []}))
 
 (def protocol-v2-mapping
                                         ; mapping looks like method-number -> method
