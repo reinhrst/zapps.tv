@@ -19,7 +19,7 @@
    connections-data))
 
 (defn- handle-match-fingerprints-v1 [connection-name input-stream output-stream channel-connections-data-atom state]
-  (let [channels-data-and-ids (time (create-channels-data-and-ids @channel-connections-data-atom))
+  (let [channels-data-and-ids (create-channels-data-and-ids @channel-connections-data-atom)
         number-of-fingerprints (.readUnsignedByte input-stream)
         timestamp-first-fingerprint (.readLong input-stream)
         fingerprints (doall (repeatedly number-of-fingerprints #(.readInt input-stream)))
