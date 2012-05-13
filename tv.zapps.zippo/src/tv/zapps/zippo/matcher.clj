@@ -5,7 +5,7 @@
 (def MINIMUM_FINGERPRINTS_FOR_MATCH_SUGGESTION 20)
 (def MAXIMUM_LOOKBACK_FRAMES 3000)
 (def MAXIMUM_FINGERPRINTS_FOR_MATCH 128)
-(def POSITIVE_CORRELATION_CUTOFF 0.98)
+(def POSITIVE_CORRELATION_CUTOFF 0.99)
 (def SURROUNDINGS_FOR_ON_LOCATION_MATCH 2)
 (def DEGRADATION_PER_TIMESTEP (Math/pow 1.02 1/80)) ; about 80 timestamps in a second, this means degradation of this factor per second
 
@@ -160,8 +160,8 @@
                                                      (recur (unchecked-inc i))
                                                      i))
             channel-data-to-consider-length (+ (- to-match-end-timestamp to-match-start-timestamp)
-                                              2 ; we take the window one wider on each side
-                                              1) ; off-by-one: if start-timestamp == end-timestamp than we still need one sample, so always + 1
+                                               2 ; we take the window one wider on each side
+                                               1) ; off-by-one: if start-timestamp == end-timestamp than we still need one sample, so always + 1
 
             channel-data-to-consider (subdata channel-data channel-data-to-consider-start-index channel-data-to-consider-length)
             differences (calculate-differences data-to-match channel-data-to-consider)
