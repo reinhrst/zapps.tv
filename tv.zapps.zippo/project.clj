@@ -12,4 +12,5 @@
                  [clj-yaml "0.3.1"]
                  [cheshire "3.0.0"]
                  [nl.claude.tools "0.0.2"]]
-  :dev-dependencies [[swank-clojure "1.4.0"]])
+  :dev-dependencies [[swank-clojure "1.4.0"]]
+  :jvm-opts ["-Xmx1g"])
